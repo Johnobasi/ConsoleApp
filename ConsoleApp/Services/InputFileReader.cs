@@ -7,32 +7,37 @@ namespace ConsoleApp.Services
     {
         public async IAsyncEnumerable<string> ReadFileInChunksAsync(string path)
         {
+            if (!File.Exists(path))
+            {
+                throw new FileNotFoundException($"Input file not found: {path}");
+            }
             StreamReader streamReader;
 
             try
             {
-                if (!File.Exists(path))
-                {
-                    throw new FileNotFoundException($"Input file not found: {path}");
-                }
-
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-                streamReader = new StreamReader(path, Encoding.GetEncoding("Windows-1252"));
+                try
+                {
+                    streamReader = new StreamReader(path, Encoding.GetEncoding("Windows-1252"));
+                }
+                catch (ArgumentException)
+                {
+                    // Fallback to UTF-8 encoding if Windows-1252 is not supported
+                    streamReader = new StreamReader(path, Encoding.UTF8);
+                }                
             }
             catch (Exception ex)
             {
-                throw new IOException($"Error initializing file read: {path}. Details: {ex.Message}", ex);
+                throw new IOException($"Error while initializing file read: {path}. Message: {ex.Message}", ex);
             }
             using(streamReader)
             {
                 string? line;
                 while ((line = await streamReader.ReadLineAsync()) != null)
                 {
-                    yield return line; // Yield lines one by one
+                    yield return line;
                 }
             }
         }
-
     }
-
 }

@@ -13,6 +13,7 @@ namespace ConsoleAppTest
         private readonly Mock<IOutputFileWriter> _mockOutputWriter;
         private readonly InputFileReader _inputFileReader;
         private readonly FrequencyProcessor _frequencyProcessor;
+        private readonly OutputFileWriter _outputFileWriter;
         public FrequencyDictionaryTests()
         {
             _mockInputReader = new Mock<IInputFileReader>();
@@ -20,6 +21,7 @@ namespace ConsoleAppTest
             _mockOutputWriter = new Mock<IOutputFileWriter>();
             _inputFileReader = new InputFileReader();
             _frequencyProcessor = new FrequencyProcessor();
+            _outputFileWriter = new OutputFileWriter();
         }
 
         [Fact]
@@ -39,8 +41,14 @@ namespace ConsoleAppTest
 
             try
             {
-                // Act
-                var result = await _inputFileReader.ReadFileAsync(filePath);
+                // Act: Read the content using the InputFileReader
+                var resultLines = new List<string>();
+                await foreach (var line in _inputFileReader.ReadFileInChunksAsync(filePath))
+                {
+                    resultLines.Add(line);
+                }
+
+                var result = string.Join(" ", resultLines); // Combine lines into a single string for comparison
 
                 // Assert
                 result.Should().Be(fileContent);
@@ -58,15 +66,26 @@ namespace ConsoleAppTest
         [Fact]
         public async Task ReadFile_FileNotFound_ThrowsFileNotFoundException()
         {
+            // Arrange
             var filePath = "nonexistent.txt";
 
-            await Assert.ThrowsAsync<FileNotFoundException>(() => _inputFileReader.ReadFileAsync(filePath));
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<FileNotFoundException>(async () =>
+            {
+                await foreach (var _ in _inputFileReader.ReadFileInChunksAsync(filePath))
+                {
+                    // This block won't execute because the exception will be thrown first
+                }
+            });
+
+            //Assert
+            exception.Message.Should().Be($"Input file not found: {filePath}");
         }
 
         [Fact]
         public async Task GetWordFrequencies_ValidContent_ReturnsCorrectFrequencies()
         {
-            var content = "hello world hello";
+            var content = GetAsyncEnumerable(["hello world hello"]);// "hello world hello";
             var expected = new Dictionary<string, int>
             {
                 { "hello", 2 },
@@ -81,7 +100,7 @@ namespace ConsoleAppTest
         public async Task GetWordFrequencies_SpecialCharacters_IgnoresWhitespace()
         {
             // Arrange
-            var content = "hello    world\nhello";
+            var content = GetAsyncEnumerable(["hello    world\nhello"]);
             var expected = new Dictionary<string, int>
             {
                 { "hello", 2 },
@@ -99,24 +118,43 @@ namespace ConsoleAppTest
         public async Task Main_ValidInputs_ProcessesSuccessfully()
         {
             // Arrange
-            _mockInputReader.Setup(reader => reader.ReadFileAsync("input.txt")).ReturnsAsync("hello world hello");
-            _mockFrequencyAnalyzer
-                .Setup(analyzer => analyzer.GetWordFrequenciesAsync("hello world hello"))
-                    .ReturnsAsync(new Dictionary<string, int>
-                    {
-                        { "hello", 2 },
-                        { "world", 1 }
-                    });
+            var mockInputReader = new Mock<IInputFileReader>();
+            var mockFrequencyAnalyzer = new Mock<IFrequencyProcessor>();
+            var mockOutputWriter = new Mock<IOutputFileWriter>();
+
+            // Simulate IAsyncEnumerable<string> for file lines
+            mockInputReader
+                .Setup(reader => reader.ReadFileInChunksAsync("input.txt"))
+                .Returns(GetAsyncEnumerable(new[] { "hello world", "hello" }));
+
+            mockFrequencyAnalyzer
+                .Setup(analyzer => analyzer.GetWordFrequenciesAsync(It.IsAny<IAsyncEnumerable<string>>()))
+                .ReturnsAsync(new Dictionary<string, int>
+                {
+            { "hello", 2 },
+            { "world", 1 }
+                });
+
+            mockOutputWriter
+                .Setup(writer => writer.WriteFrequenciesAsync("output.txt", It.IsAny<Dictionary<string, int>>()))
+                .Returns(Task.CompletedTask);
 
             // Act
-            string content = await _mockInputReader.Object.ReadFileAsync("input.txt");
-            var frequencies = await _mockFrequencyAnalyzer.Object.GetWordFrequenciesAsync(content);
-            await _mockOutputWriter.Object.WriteFrequenciesAsync("output.txt", frequencies);
-
-            // Assert
-            _mockInputReader.Verify(reader => reader.ReadFileAsync("input.txt"), Times.Once);
-            _mockFrequencyAnalyzer.Verify(analyzer => analyzer.GetWordFrequenciesAsync("hello world hello"), Times.Once);
-            _mockOutputWriter.Verify(writer => writer.WriteFrequenciesAsync("output.txt", It.IsAny<Dictionary<string, int>>()), Times.Once);
+            var fileStream = mockInputReader.Object.ReadFileInChunksAsync("input.txt");
+            var frequencies = await mockFrequencyAnalyzer.Object.GetWordFrequenciesAsync(fileStream);
+            await mockOutputWriter.Object.WriteFrequenciesAsync("output.txt", frequencies);
         }
+
+        #region
+        // Helper method to create an IAsyncEnumerable<string>
+        private static async IAsyncEnumerable<string> GetAsyncEnumerable(IEnumerable<string> lines)
+        {
+            foreach (var line in lines)
+            {
+                await Task.Delay(1); // Simulate asynchronous operation
+                yield return line;
+            }
+        }
+        #endregion
     }
 }

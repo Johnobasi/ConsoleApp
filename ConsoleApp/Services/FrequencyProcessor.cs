@@ -11,8 +11,9 @@ namespace ConsoleApp.Services
         {
             try
             {
-                var wordPattern = @"\b[a-zA-Z]+\b";
+                var wordPattern = @"\b\p{L}+\b"; // Include Unicode letters
                 var wordFrequencies = new ConcurrentDictionary<string, int>();
+                var unsupportedCharacters = new List<string>();
                 await Parallel.ForEachAsync(fileLines, async (line, _) =>
                 {
                     var words = Regex.Matches(line.ToLowerInvariant(), wordPattern)
@@ -27,6 +28,12 @@ namespace ConsoleApp.Services
 
                     await Task.CompletedTask;
                 });
+
+                foreach (var unsupported in unsupportedCharacters)
+                {
+                    Debug.WriteLine($"Excluded unsupported chars: {unsupported}");
+                }
+
                 return wordFrequencies
                     .OrderByDescending(kvp => kvp.Value)
                     .ThenBy(kvp => kvp.Key)
