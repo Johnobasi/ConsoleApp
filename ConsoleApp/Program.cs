@@ -1,9 +1,9 @@
-﻿using ConsoleApp.Abstracts;
-using ConsoleApp.Services;
+﻿using ConsoleApp.Services;
+using Newtonsoft.Json;
 
 public class Program
 {
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
         try
         {
@@ -16,16 +16,11 @@ public class Program
             string inputFile = args[0];
             string outputFile = args[1];
 
-            // Dependency injection
-            IInputReader inputReader = new InputReader();
-            IFrequencyAnalyzer frequencyAnalyzer = new FrequencyAnalyzer();
+            string content = await new InputFileReader().ReadFileAsync(inputFile);
+            var frequencyDictionary = await new FrequencyProcessor().GetWordFrequenciesAsync(content);
+            await  new OutputFileWriter().WriteFrequenciesAsync(outputFile, frequencyDictionary);
 
-            // Process
-            string content = inputReader.ReadFile(inputFile);
-            var frequencyDictionary = frequencyAnalyzer.GetWordFrequencies(content);
-            new OutputWriter().WriteFrequencies(outputFile, frequencyDictionary);
-
-            Console.WriteLine("Frequency dictionary created successfully.");
+            Console.WriteLine($"Frequency dictionary created successfully. Output copy saved to output.txt...\n{JsonConvert.SerializeObject(frequencyDictionary, Formatting.Indented)}");
         }
         catch (Exception ex)
         {
