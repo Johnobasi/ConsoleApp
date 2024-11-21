@@ -11,11 +11,15 @@ namespace ConsoleAppTest
         private readonly Mock<IInputFileReader> _mockInputReader;
         private readonly Mock<IFrequencyProcessor> _mockFrequencyAnalyzer;
         private readonly Mock<IOutputFileWriter> _mockOutputWriter;
+        private readonly InputFileReader _inputFileReader;
+        private readonly FrequencyProcessor _frequencyProcessor;
         public FrequencyDictionaryTests()
         {
             _mockInputReader = new Mock<IInputFileReader>();
             _mockFrequencyAnalyzer = new Mock<IFrequencyProcessor>();
             _mockOutputWriter = new Mock<IOutputFileWriter>();
+            _inputFileReader = new InputFileReader();
+            _frequencyProcessor = new FrequencyProcessor();
         }
 
         [Fact]
@@ -33,12 +37,10 @@ namespace ConsoleAppTest
                 await writer.WriteAsync(fileContent);
             }
 
-            var inputReader = new InputFileReader();
-
             try
             {
                 // Act
-                var result = await inputReader.ReadFileAsync(filePath);
+                var result = await _inputFileReader.ReadFileAsync(filePath);
 
                 // Assert
                 result.Should().Be(fileContent);
@@ -56,10 +58,9 @@ namespace ConsoleAppTest
         [Fact]
         public async Task ReadFile_FileNotFound_ThrowsFileNotFoundException()
         {
-            var inputReader = new InputFileReader();
             var filePath = "nonexistent.txt";
 
-            await Assert.ThrowsAsync<FileNotFoundException>(() => inputReader.ReadFileAsync(filePath));
+            await Assert.ThrowsAsync<FileNotFoundException>(() => _inputFileReader.ReadFileAsync(filePath));
         }
 
         [Fact]
@@ -72,9 +73,7 @@ namespace ConsoleAppTest
                 { "world", 1 }
             };
 
-            var frequencyAnalyzer = new FrequencyProcessor();
-
-            var result = await frequencyAnalyzer.GetWordFrequenciesAsync(content);
+            var result = await _frequencyProcessor.GetWordFrequenciesAsync(content);
             result.Should().BeEquivalentTo(expected);
         }
 
@@ -89,16 +88,12 @@ namespace ConsoleAppTest
                 { "world", 1 }
             };
 
-            var frequencyAnalyzer = new FrequencyProcessor();
-
             // Act
-            var result = await frequencyAnalyzer.GetWordFrequenciesAsync(content);
+            var result = await _frequencyProcessor.GetWordFrequenciesAsync(content);
 
             // Assert
             result.Should().BeEquivalentTo(expected, options => options.WithStrictOrdering());
         }
-
-
         //program class test with mock
         [Fact]
         public async Task Main_ValidInputs_ProcessesSuccessfully()
