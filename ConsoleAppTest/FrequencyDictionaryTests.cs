@@ -8,120 +8,227 @@ namespace ConsoleAppTest
 {
     public class FrequencyDictionaryTests
     {
-        private readonly Mock<IInputFileReader> _mockInputReader;
-        private readonly Mock<IFrequencyProcessor> _mockFrequencyAnalyzer;
-        private readonly Mock<IOutputFileWriter> _mockOutputWriter;
+        private readonly Mock<IInputFileProcessor> _mockInputFileProcessor;
+        private readonly Mock<IOutputFileWriter> _mockOutputFileWriter;
+        private readonly InputFileProcessor _inputFileProcessor;
+        private readonly OutputFileWriter _outputFileWriter;
         public FrequencyDictionaryTests()
         {
-            _mockInputReader = new Mock<IInputFileReader>();
-            _mockFrequencyAnalyzer = new Mock<IFrequencyProcessor>();
-            _mockOutputWriter = new Mock<IOutputFileWriter>();
+            _mockInputFileProcessor = new Mock<IInputFileProcessor>();
+            _mockOutputFileWriter = new Mock<IOutputFileWriter>();
+            _inputFileProcessor = new InputFileProcessor();
+            _outputFileWriter = new OutputFileWriter();
         }
 
+        /// <summary>
+        /// This test shows how a file is processed when it contains valid words.
+        /// </summary>
+        /// <returns></returns>
         [Fact]
-        public async Task ReadFile_FileExists_ReturnsContent()
+        public async Task ProcessFileAsync_ValidFile_ReturnsCorrectWordFrequencies()
         {
             // Arrange
-            var filePath = "test.txt";
-            var fileContent = "Hello World";
+            string testFilePath = "testfile.txt";
+            string fileContent = "Hello world! Hello again.";
+            var expectedFrequencies = new Dictionary<string, int>
+                {
+                    { "hello", 2 },
+                    { "world", 1 },
+                    { "again", 1 }
+                };
 
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-            using (var fileStream = new FileStream(filePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var fileStream = new FileStream(testFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
             using (var writer = new StreamWriter(fileStream, Encoding.GetEncoding("Windows-1252")))
             {
                 await writer.WriteAsync(fileContent);
             }
 
-            var inputReader = new InputFileReader();
-
             try
             {
                 // Act
-                var result = await inputReader.ReadFileAsync(filePath);
+                var result = await _inputFileProcessor.ProcessFileAsync(testFilePath);
 
                 // Assert
-                result.Should().Be(fileContent);
+                result.Should().NotBeNull();
+                result.Should().BeEquivalentTo(expectedFrequencies);
             }
             finally
             {
-                // Cleanup test file
-                if (File.Exists(filePath))
+                // Cleanup
+                if (File.Exists(testFilePath))
                 {
-                    File.Delete(filePath);
+                    File.Delete(testFilePath);
                 }
             }
         }
 
+        /// <summary>
+        /// This test show how file is processed when it contains no words.
+        /// </summary>
+        /// <returns></returns>
         [Fact]
-        public async Task ReadFile_FileNotFound_ThrowsFileNotFoundException()
-        {
-            var inputReader = new InputFileReader();
-            var filePath = "nonexistent.txt";
-
-            await Assert.ThrowsAsync<FileNotFoundException>(() => inputReader.ReadFileAsync(filePath));
-        }
-
-        [Fact]
-        public async Task GetWordFrequencies_ValidContent_ReturnsCorrectFrequencies()
-        {
-            var content = "hello world hello";
-            var expected = new Dictionary<string, int>
-            {
-                { "hello", 2 },
-                { "world", 1 }
-            };
-
-            var frequencyAnalyzer = new FrequencyProcessor();
-
-            var result = await frequencyAnalyzer.GetWordFrequenciesAsync(content);
-            result.Should().BeEquivalentTo(expected);
-        }
-
-        [Fact]
-        public async Task GetWordFrequencies_SpecialCharacters_IgnoresWhitespace()
+        public async Task ProcessFileAsync_FileNotFound_ThrowsFileNotFoundException()
         {
             // Arrange
-            var content = "hello    world\nhello";
-            var expected = new Dictionary<string, int>
-            {
-                { "hello", 2 },
-                { "world", 1 }
-            };
+            string nonExistentFilePath = "nonexistentfile.txt";
+            var processor = new InputFileProcessor();
 
-            var frequencyAnalyzer = new FrequencyProcessor();
-
-            // Act
-            var result = await frequencyAnalyzer.GetWordFrequenciesAsync(content);
-
-            // Assert
-            result.Should().BeEquivalentTo(expected, options => options.WithStrictOrdering());
+            // Act & Assert
+            var exception = await Assert.ThrowsAsync<FileNotFoundException>(
+                () => processor.ProcessFileAsync(nonExistentFilePath));
+            exception.Message.Should().Contain("Input file not found");
         }
 
-
-        //program class test with mock
+        /// <summary>
+        /// This test shows how a file is process with invalid chracters and the invalid words are ignored.
+        /// </summary>
+        /// <returns></returns>
         [Fact]
-        public async Task Main_ValidInputs_ProcessesSuccessfully()
+        public async Task ProcessFileAsync_InvalidCharacters_IgnoresInvalidWords()
         {
             // Arrange
-            _mockInputReader.Setup(reader => reader.ReadFileAsync("input.txt")).ReturnsAsync("hello world hello");
-            _mockFrequencyAnalyzer
-                .Setup(analyzer => analyzer.GetWordFrequenciesAsync("hello world hello"))
-                    .ReturnsAsync(new Dictionary<string, int>
+            string testFilePath = "invalidcharsfile.txt";
+            string fileContent = "Hello!!! 123 world... #$@! Hello";
+            var expectedFrequencies = new Dictionary<string, int>
                     {
                         { "hello", 2 },
                         { "world", 1 }
-                    });
+                    };
+
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            using (var fileStream = new FileStream(testFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+            using (var writer = new StreamWriter(fileStream, Encoding.GetEncoding("Windows-1252")))
+            {
+                await writer.WriteAsync(fileContent);
+            }
+
+            try
+            {
+                // Act
+                var result = await _inputFileProcessor.ProcessFileAsync(testFilePath);
+
+                // Assert
+                result.Should().NotBeNull();
+                result.Should().BeEquivalentTo(expectedFrequencies);
+            }
+            finally
+            {
+                // Cleanup
+                if (File.Exists(testFilePath))
+                {
+                    File.Delete(testFilePath);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Thus test demonstartes writing to a file when inputs are correct
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        public async Task WriteFrequenciesAsync_ValidInput_WritesToFileSuccessfully()
+        {
+            // Arrange
+            string testFilePath = "output_test.txt";
+            var testFrequencies = new Dictionary<string, int>
+                {
+                    { "hello", 2 },
+                    { "world", 1 }
+                };
+
+            var expectedContent = "hello,2\nworld,1\n";
+
+            try
+            {
+                // Act
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                await _outputFileWriter.WriteFrequenciesAsync(testFilePath, testFrequencies);
+
+                // Assert
+                File.Exists(testFilePath).Should().BeTrue("The output file was not created.");
+
+                using (var fileStream = new FileStream(testFilePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+                using (var reader = new StreamReader(fileStream, Encoding.GetEncoding("Windows-1252")))
+                {
+                    var actualContent = await reader.ReadToEndAsync();
+
+                    // Normalize line endings for comparison
+                    var normalizedActualContent = actualContent.Replace("\r\n", "\n");
+                    normalizedActualContent.Should().Be(expectedContent);
+                }
+            }
+            finally
+            {
+                // Cleanup
+                if (File.Exists(testFilePath))
+                {
+                    File.Delete(testFilePath);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This test demonstrates writing to a file that is read-only and throws exception as expected.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        public async Task WriteFrequenciesAsync_UnauthorizedAccess_ThrowsIOException()
+        {
+            // Arrange
+            string restrictedFilePath = "restricted_output_test.txt";
+            var testFrequencies = new Dictionary<string, int> { { "test", 1 } };
+
+            try
+            {
+                // Create file and make it read-only
+                Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+                File.WriteAllText(restrictedFilePath, string.Empty);
+                File.SetAttributes(restrictedFilePath, FileAttributes.ReadOnly);
+
+                // Act & Assert
+                var exception = await Assert.ThrowsAsync<IOException>(() =>
+                    _outputFileWriter.WriteFrequenciesAsync(restrictedFilePath, testFrequencies));
+
+                exception.Message.Should().Contain("Cannot write to file");
+            }
+            finally
+            {
+                // Cleanup
+                if (File.Exists(restrictedFilePath))
+                {
+                    File.SetAttributes(restrictedFilePath, FileAttributes.Normal); // Remove read-only attribute
+                    File.Delete(restrictedFilePath);
+                }
+            }
+        }
+
+        /// <summary>
+        /// This test demonstrates how to use Moq to mock the dependencies of the Main method.
+        /// </summary>
+        /// <returns></returns>
+        [Fact]
+        public async Task Main_ValidInputs_ProcessesSuccessfully()
+        {
+            //Arrange
+            var wordFrequencies = new Dictionary<string, int>
+                {
+                    { "hello", 2 },
+                    { "world", 1 }
+                };
+
+            _mockInputFileProcessor
+                .Setup(processor => processor.ProcessFileAsync("input.txt"))
+                .ReturnsAsync(wordFrequencies);
 
             // Act
-            string content = await _mockInputReader.Object.ReadFileAsync("input.txt");
-            var frequencies = await _mockFrequencyAnalyzer.Object.GetWordFrequenciesAsync(content);
-            await _mockOutputWriter.Object.WriteFrequenciesAsync("output.txt", frequencies);
+            var frequencies = await _mockInputFileProcessor.Object.ProcessFileAsync("input.txt");
+            await _mockOutputFileWriter.Object.WriteFrequenciesAsync("output.txt", frequencies);
 
             // Assert
-            _mockInputReader.Verify(reader => reader.ReadFileAsync("input.txt"), Times.Once);
-            _mockFrequencyAnalyzer.Verify(analyzer => analyzer.GetWordFrequenciesAsync("hello world hello"), Times.Once);
-            _mockOutputWriter.Verify(writer => writer.WriteFrequenciesAsync("output.txt", It.IsAny<Dictionary<string, int>>()), Times.Once);
+            _mockInputFileProcessor.Verify(processor => processor.ProcessFileAsync("input.txt"), Times.Once);
+            _mockOutputFileWriter.Verify(writer => writer.WriteFrequenciesAsync("output.txt", wordFrequencies), Times.Once);
         }
     }
 }

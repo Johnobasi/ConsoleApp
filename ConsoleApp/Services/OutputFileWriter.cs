@@ -3,6 +3,9 @@ using System.Text;
 
 namespace ConsoleApp.Services
 {
+    /// <summary>
+    /// This class writes word frequencies to an output file in a key value pair format
+    /// </summary>
     public class OutputFileWriter : IOutputFileWriter
     {
         public async Task WriteFrequenciesAsync(string path, Dictionary<string, int> frequenciesDictionary)
