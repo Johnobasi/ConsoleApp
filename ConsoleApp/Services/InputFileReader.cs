@@ -5,39 +5,34 @@ namespace ConsoleApp.Services
 {
     public class InputFileReader : IInputFileReader
     {
-        public async Task<string> ReadFileAsync(string path)
+        public async IAsyncEnumerable<string> ReadFileInChunksAsync(string path)
         {
-            if (!File.Exists(path))
-            {
-                throw new FileNotFoundException($"Input file not found: {path}");
-            }
+            StreamReader streamReader;
 
             try
             {
-                // Register the encoding provider
+                if (!File.Exists(path))
+                {
+                    throw new FileNotFoundException($"Input file not found: {path}");
+                }
+
                 Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-                using var streamReader = new StreamReader(path, Encoding.GetEncoding("Windows-1252"));
-                return await ReadFileAsync(streamReader);
-
+                streamReader = new StreamReader(path, Encoding.GetEncoding("Windows-1252"));
             }
             catch (Exception ex)
             {
-                throw new IOException($"Error reading file: {path}. Details: {ex.Message}");
+                throw new IOException($"Error initializing file read: {path}. Details: {ex.Message}", ex);
+            }
+            using(streamReader)
+            {
+                string? line;
+                while ((line = await streamReader.ReadLineAsync()) != null)
+                {
+                    yield return line; // Yield lines one by one
+                }
             }
         }
 
-        private async Task<string> ReadFileAsync(StreamReader streamReader)
-        {
-            try
-            {
-                return await streamReader.ReadToEndAsync();
-            }
-            catch (Exception ex)
-            {
-                throw new IOException($"Error reading stream. Details: {ex.Message}");
-            }
-        }
     }
-    
+
 }

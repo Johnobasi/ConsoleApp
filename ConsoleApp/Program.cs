@@ -1,4 +1,6 @@
-﻿using ConsoleApp.Services;
+﻿using ConsoleApp;
+using ConsoleApp.Abstracts;
+using Microsoft.Extensions.DependencyInjection;
 using Newtonsoft.Json;
 
 public class Program
@@ -16,11 +18,23 @@ public class Program
             string inputFile = args[0];
             string outputFile = args[1];
 
-            string content = await new InputFileReader().ReadFileAsync(inputFile);
-            var frequencyDictionary = await new FrequencyProcessor().GetWordFrequenciesAsync(content);
-            await  new OutputFileWriter().WriteFrequenciesAsync(outputFile, frequencyDictionary);
+            #region Dependency Injection
+            /// Set up the DI container
+            var serviceProvider = DependencyInjection.ConfigureServices();
 
-            Console.WriteLine($"Frequency dictionary created successfully. Output copy saved to output.txt...\n{JsonConvert.SerializeObject(frequencyDictionary, Formatting.Indented)}");
+            // Resolve dependencies
+            var inputReader = serviceProvider.GetRequiredService<IInputFileReader>();
+            var frequencyAnalyzer = serviceProvider.GetRequiredService<IFrequencyProcessor>();
+            var outputWriter = serviceProvider.GetRequiredService<IOutputFileWriter>();
+
+            #endregion
+            
+            // Use the resolved dependencies
+            var fileStream =  inputReader.ReadFileInChunksAsync(inputFile);
+            var frequencyDictionary = await frequencyAnalyzer.GetWordFrequenciesAsync(fileStream);
+            await outputWriter.WriteFrequenciesAsync(outputFile, frequencyDictionary);
+
+            Console.WriteLine($"Frequency dictionary created successfully. Otput copy saved to output.txt...\n{JsonConvert.SerializeObject(frequencyDictionary, Formatting.Indented)}");
         }
         catch (Exception ex)
         {

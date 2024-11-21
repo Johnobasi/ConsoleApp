@@ -7,40 +7,26 @@ namespace ConsoleApp.Services
 {
     public class FrequencyProcessor : IFrequencyProcessor
     {
-        public async Task<Dictionary<string, int>> GetWordFrequenciesAsync(string fileContent)
+        public async Task<Dictionary<string, int>> GetWordFrequenciesAsync(IAsyncEnumerable<string> fileLines)
         {
-
             try
             {
-                //Check if file content is nul.
-                if (string.IsNullOrEmpty(fileContent))
-                {
-                    throw new ArgumentException("File content is empty");
-                }
-
-                //Regex pattern to match words 
-                var wordPattern = @"^[A-Za-z]";
-
-                //Split content by spaces and newlines, normalize case
-                var words = fileContent
-                    .Split([' ', '\n', '\r', '\t'], StringSplitOptions.RemoveEmptyEntries) //use collection expression
-                    .Select(word => word.Trim().ToLowerInvariant());
-
-                //ConcurrentDictionary is used here for thread-safety
+                var wordPattern = @"\b[a-zA-Z]+\b";
                 var wordFrequencies = new ConcurrentDictionary<string, int>();
-
-                await Parallel.ForEachAsync(words, async (word, CancellationToken) =>
+                await Parallel.ForEachAsync(fileLines, async (line, _) =>
                 {
+                    var words = Regex.Matches(line.ToLowerInvariant(), wordPattern)
+                                     .Cast<Match>()
+                                     .Select(match => match.Value);
 
-                    if (Regex.IsMatch(word, wordPattern))
+                    foreach (var word in words)
                     {
                         Debug.WriteLine($"Processing word: {word}");
                         wordFrequencies.AddOrUpdate(word, 1, (_, count) => count + 1);
                     }
+
                     await Task.CompletedTask;
                 });
-
-                // Convert to dictionary, sort by descending order
                 return wordFrequencies
                     .OrderByDescending(kvp => kvp.Value)
                     .ThenBy(kvp => kvp.Key)
@@ -49,8 +35,7 @@ namespace ConsoleApp.Services
             catch (Exception ex)
             {
                 throw new InvalidOperationException("Failed to successfully process word frequencies..!", ex);
-            }
-            
+            }           
         }
     }
 }

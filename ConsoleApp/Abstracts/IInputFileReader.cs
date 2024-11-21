@@ -2,6 +2,6 @@
 {
     public interface IInputFileReader 
     {
-       Task<string> ReadFileAsync(string path);
+        IAsyncEnumerable<string> ReadFileInChunksAsync(string path);
     }
 }

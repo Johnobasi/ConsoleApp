@@ -2,6 +2,6 @@
 {
     public interface IFrequencyProcessor 
     {
-        Task<Dictionary<string, int>> GetWordFrequenciesAsync(string fileContent);
+        Task<Dictionary<string, int>> GetWordFrequenciesAsync(IAsyncEnumerable<string> fileLines);
     }
 }
