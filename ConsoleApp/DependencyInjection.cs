@@ -1,6 +1,11 @@
 ﻿using ConsoleApp.Abstracts;
 using ConsoleApp.Services;
 using Microsoft.Extensions.DependencyInjection;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ConsoleApp
 {
@@ -9,10 +14,9 @@ namespace ConsoleApp
         public static ServiceProvider ConfigureServices()
         {
             var services = new ServiceCollection();
-            services.AddTransient<IInputFileReader, InputFileReader>();
-            services.AddTransient<IFrequencyProcessor, FrequencyProcessor>();
+            services.AddTransient<IInputFileProcessor, InputFileProcessor>();
             services.AddTransient<IOutputFileWriter, OutputFileWriter>();
-                       
+
             return services.BuildServiceProvider();
         }
     }

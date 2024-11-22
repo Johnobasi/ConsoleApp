@@ -1,10 +1,15 @@
-﻿using ConsoleApp;
-using ConsoleApp.Abstracts;
-using Microsoft.Extensions.DependencyInjection;
+﻿using ConsoleApp.Abstracts;
+using ConsoleApp;
 using Newtonsoft.Json;
+using Microsoft.Extensions.DependencyInjection;
 
 public class Program
 {
+    /// <summary>
+    /// Main entry point for the application
+    /// </summary>
+    /// <param name="args"></param>
+    /// <returns></returns>
     public static async Task Main(string[] args)
     {
         try
@@ -23,15 +28,11 @@ public class Program
             var serviceProvider = DependencyInjection.ConfigureServices();
 
             // Resolve dependencies
-            var inputReader = serviceProvider.GetRequiredService<IInputFileReader>();
-            var frequencyAnalyzer = serviceProvider.GetRequiredService<IFrequencyProcessor>();
+            var inputReader = serviceProvider.GetRequiredService<IInputFileProcessor>();
             var outputWriter = serviceProvider.GetRequiredService<IOutputFileWriter>();
 
             #endregion
-            
-            // Use the resolved dependencies
-            var fileStream =  inputReader.ReadFileInChunksAsync(inputFile);
-            var frequencyDictionary = await frequencyAnalyzer.GetWordFrequenciesAsync(fileStream);
+            Dictionary<string, int> frequencyDictionary = await inputReader.ProcessFileAsync(inputFile);
             await outputWriter.WriteFrequenciesAsync(outputFile, frequencyDictionary);
 
             Console.WriteLine($"Frequency dictionary created successfully. Otput copy saved to output.txt...\n{JsonConvert.SerializeObject(frequencyDictionary, Formatting.Indented)}");
