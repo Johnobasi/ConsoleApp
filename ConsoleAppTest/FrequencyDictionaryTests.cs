@@ -50,8 +50,6 @@ namespace ConsoleAppTest
                 // Act
                 var result = await _inputFileProcessor.ProcessFileAsync(testFilePath);
 
-                var result = string.Join(" ", resultLines); // Combine lines into a single string for comparison
-
                 // Assert
                 result.Should().NotBeNull();
                 result.Should().BeEquivalentTo(expectedFrequencies);
@@ -224,9 +222,6 @@ namespace ConsoleAppTest
                 .Setup(processor => processor.ProcessFileAsync("input.txt"))
                 .ReturnsAsync(wordFrequencies);
 
-            mockOutputWriter
-                .Setup(writer => writer.WriteFrequenciesAsync("output.txt", It.IsAny<Dictionary<string, int>>()))
-                .Returns(Task.CompletedTask);
 
             // Act
             var frequencies = await _mockInputFileProcessor.Object.ProcessFileAsync("input.txt");
@@ -236,6 +231,5 @@ namespace ConsoleAppTest
             _mockInputFileProcessor.Verify(processor => processor.ProcessFileAsync("input.txt"), Times.Once);
             _mockOutputFileWriter.Verify(writer => writer.WriteFrequenciesAsync("output.txt", wordFrequencies), Times.Once);
         }
-        #endregion
     }
 }
