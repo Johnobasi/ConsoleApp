@@ -35,8 +35,6 @@ The IInputFileProcessor interface defines a method, ProcessFileAsync(), which pr
 #Implementation:
 
 InputFileProcessor reads a file line by line and supports multiple encodings.
-It handles Windows-1252 encoding and falls back to UTF-8 when necessary.
-While implementing InputFileReader, I encountered issues with files encoded in an unexpected format. Adding a fallback to UTF-8 resolved the problem.
 
 ##3. IOutputFileWriter Interface: Defines the contract for writing word frequencies to a file in key value pair format.
 
@@ -51,7 +49,7 @@ While implementing InputFileReader, I encountered issues with files encoded in a
 #Purpose:
 
 Serve as entry point for the application.
-Dependency injection (DI) to resolve IInputFileReader, IFrequencyProcessor, and IOutputFileWriter implementations.
+Dependency injection (DI) to resolve IFrequencyProcessor and IOutputFileWriter implementations.
 Reads file chunks.
 Processes word frequencies.
 Writes results to the output file.
