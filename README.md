@@ -59,8 +59,6 @@ Initializes dependency injection.
 ###Design Principles used
 
 Separation of Concerns : Logic for read and write and seperated
-Dependency Injection : injected the interfaces in DI
-Uses asynchronous streams (IAsyncEnumerable) and parallel processing to handle large files efficiently.
 ##Future Expansion
 
 Support for Additional Input and output format
